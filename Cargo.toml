@@ -1,0 +1,8 @@
+[package]
+name = "height-mesh"
+description = "A small crate to generate a 3D mesh from a 2D heightmap."
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+ndshape = "0.1"
