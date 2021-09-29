@@ -4,7 +4,7 @@
 //! use height_mesh::ndshape::{ConstShape, ConstShape2u32};
 //! use height_mesh::{height_mesh, HeightMeshBuffer};
 //!
-//! // A 64^2 chunk with 1-voxel boundary padding.
+//! // A 64^2 chunk with 1-pixel boundary padding.
 //! type ChunkShape = ConstShape2u32<66, 66>;
 //!
 //! // This chunk will cover just a single quadrant of a parabola.
