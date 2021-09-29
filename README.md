@@ -22,3 +22,5 @@ height_mesh(&sdf, &ChunkShape {}, [0; 2], [65; 2], &mut buffer);
 // Some triangles were generated.
 assert!(!buffer.indices.is_empty());
 ```
+
+License: MIT OR Apache-2.0
