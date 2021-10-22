@@ -9,7 +9,7 @@ use height_mesh::{height_mesh, HeightMeshBuffer};
 // A 64^2 chunk with 1-pixel boundary padding.
 type ChunkShape = ConstShape2u32<66, 66>;
 
-// This chunk will cover just a single quadrant of a parabola.
+// This chunk will cover just a single quadrant of a paraboloid.
 let mut height_map = [1.0; ChunkShape::SIZE as usize];
 for i in 0u32..ChunkShape::SIZE {
     let [x, y] = ChunkShape::delinearize(i);
