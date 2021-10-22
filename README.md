@@ -10,14 +10,14 @@ use height_mesh::{height_mesh, HeightMeshBuffer};
 type ChunkShape = ConstShape2u32<66, 66>;
 
 // This chunk will cover just a single quadrant of a parabola.
-let mut sdf = [1.0; ChunkShape::SIZE as usize];
+let mut height_map = [1.0; ChunkShape::SIZE as usize];
 for i in 0u32..ChunkShape::SIZE {
     let [x, y] = ChunkShape::delinearize(i);
-    sdf[i as usize] = ((x * x + y * y) as f32).sqrt();
+    height_map[i as usize] = ((x * x + y * y) as f32).sqrt();
 }
 
 let mut buffer = HeightMeshBuffer::default();
-height_mesh(&sdf, &ChunkShape {}, [0; 2], [65; 2], &mut buffer);
+height_mesh(&height_map, &ChunkShape {}, [0; 2], [65; 2], &mut buffer);
 
 // Some triangles were generated.
 assert!(!buffer.indices.is_empty());
