@@ -1,5 +1,9 @@
 //! A small crate to generate a 3D mesh from a 2D heightmap.
 //!
+//! ![Mesh Example](https://raw.githubusercontent.com/bonsairobo/height-mesh-rs/main/render-example/mesh_example.png)
+//!
+//! # Example Code
+//!
 //! ```
 //! use height_mesh::ndshape::{ConstShape, ConstShape2u32};
 //! use height_mesh::{height_mesh, HeightMeshBuffer};

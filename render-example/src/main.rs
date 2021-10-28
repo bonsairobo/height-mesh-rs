@@ -6,30 +6,76 @@ use bevy::{
     render::{
         mesh::{Indices, VertexAttributeValues},
         pipeline::PrimitiveTopology,
+        wireframe::{WireframeConfig, WireframePlugin},
     },
+    wgpu::{WgpuFeature, WgpuFeatures, WgpuOptions},
 };
 use obj_exporter::{export_to_file, Geometry, ObjSet, Object, Primitive, Shape, Vertex};
 use std::f32::consts::PI;
 
 fn main() {
     App::build()
+        .insert_resource(WgpuOptions {
+            features: WgpuFeatures {
+                // The Wireframe requires NonFillPolygonMode feature
+                features: vec![WgpuFeature::NonFillPolygonMode],
+            },
+            ..Default::default()
+        })
+        .insert_resource(Msaa { samples: 4 })
         .add_plugins(DefaultPlugins)
+        .add_plugin(WireframePlugin)
         .add_startup_system(setup.system())
         .run();
 }
 
 fn setup(
     mut commands: Commands,
+    mut wireframe_config: ResMut<WireframeConfig>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
+    wireframe_config.global = true;
+
+    let (buffer, mesh) = heightmap_to_mesh(&mut meshes, |p| 10.0 * sine2d(5.0, p));
+
+    spawn_pbr(
+        &mut commands,
+        &mut materials,
+        mesh,
+        Transform::from_translation(Vec3::new(-32.0, 0.0, -32.0)),
+    );
+
+    commands.spawn_bundle(LightBundle {
+        transform: Transform::from_translation(Vec3::new(50.0, 50.0, 50.0)),
+        light: Light {
+            range: 200.0,
+            intensity: 8000.0,
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+    commands.spawn_bundle(PerspectiveCameraBundle {
+        transform: Transform::from_translation(Vec3::new(50.0, 75.0, 50.0))
+            .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y),
+        ..Default::default()
+    });
+
+    write_mesh_to_obj_file(&buffer);
+}
+
+fn heightmap_to_mesh(
+    meshes: &mut Assets<Mesh>,
+    heightmap: impl Fn([f32; 2]) -> f32,
+) -> (HeightMeshBuffer, Handle<Mesh>) {
+    type SampleShape = ConstShape2u32<66, 66>;
+
     let mut samples = [0.0; SampleShape::SIZE as usize];
     for i in 0u32..(SampleShape::SIZE) {
         let p = into_domain(64, SampleShape::delinearize(i));
-        samples[i as usize] = 10.0 * sine2d(5.0, p);
+        samples[i as usize] = heightmap(p);
     }
 
-    // Do a single run first to allocate the buffer to the right size.
     let mut buffer = HeightMeshBuffer::default();
     height_mesh(&samples, &SampleShape {}, [0; 2], [65; 2], &mut buffer);
 
@@ -50,28 +96,24 @@ fn setup(
     );
     render_mesh.set_indices(Some(Indices::U32(buffer.indices.clone())));
 
-    commands.spawn_bundle(LightBundle {
-        transform: Transform::from_translation(Vec3::new(50.0, 50.0, 50.0)),
-        light: Light {
-            range: 200.0,
-            intensity: 8000.0,
-            ..Default::default()
-        },
-        ..Default::default()
-    });
-    commands.spawn_bundle(PerspectiveCameraBundle {
-        transform: Transform::from_translation(Vec3::new(75.0, 100.0, 75.0))
-            .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y),
-        ..Default::default()
-    });
-    commands.spawn_bundle(PbrBundle {
-        mesh: meshes.add(render_mesh),
-        material: materials.add(Color::rgb(1.0, 0.0, 0.0).into()),
-        transform: Transform::from_translation(Vec3::new(-32.0, 0.0, -32.0)),
-        ..Default::default()
-    });
+    (buffer, meshes.add(render_mesh))
+}
 
-    write_mesh_to_obj_file(&buffer);
+fn spawn_pbr(
+    commands: &mut Commands,
+    materials: &mut Assets<StandardMaterial>,
+    mesh: Handle<Mesh>,
+    transform: Transform,
+) {
+    let mut material = StandardMaterial::from(Color::rgb(0.0, 0.0, 0.0));
+    material.roughness = 0.9;
+
+    commands.spawn_bundle(PbrBundle {
+        mesh,
+        material: materials.add(material),
+        transform,
+        ..Default::default()
+    });
 }
 
 fn write_mesh_to_obj_file(buffer: &HeightMeshBuffer) {
@@ -132,5 +174,3 @@ fn into_domain(array_dim: u32, [x, y]: [u32; 2]) -> [f32; 2] {
         (2.0 * y as f32 / array_dim as f32) - 1.0,
     ]
 }
-
-type SampleShape = ConstShape2u32<66, 66>;
