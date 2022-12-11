@@ -1,11 +1,12 @@
 [package]
 name = "render-example"
 version = "0.1.0"
-edition = "2021"
+edition = "2022"
 
 [dependencies]
-bevy = { version = "0.5", features = ["bevy_wgpu", "bevy_winit", "render", "x11"] }
-obj-exporter = "0.2"
+bevy = "0.9.1"
+bevy_flycam  = { version = "0.9.0"}
+obj-exporter = "0.2.0"
 
 [dependencies.height-mesh]
 path = ".."
