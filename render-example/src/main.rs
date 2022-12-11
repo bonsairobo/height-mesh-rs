@@ -1,31 +1,36 @@
-use height_mesh::ndshape::{ConstShape, ConstShape2u32};
-use height_mesh::{height_mesh, HeightMeshBuffer};
-
-use bevy::{
-    prelude::*,
-    render::{
-        mesh::{Indices, VertexAttributeValues},
-        pipeline::PrimitiveTopology,
-        wireframe::{WireframeConfig, WireframePlugin},
-    },
-    wgpu::{WgpuFeature, WgpuFeatures, WgpuOptions},
-};
-use obj_exporter::{export_to_file, Geometry, ObjSet, Object, Primitive, Shape, Vertex};
 use std::f32::consts::PI;
 
+use bevy::{prelude::*, pbr::wireframe::{WireframePlugin, WireframeConfig}, render::{render_resource::PrimitiveTopology, mesh::{Indices, VertexAttributeValues}}};
+use bevy_flycam::{FlyCam, MovementSettings, NoCameraPlayerPlugin};
+use height_mesh::{HeightMeshBuffer, ndshape::{ConstShape2u32, ConstShape}, height_mesh};
+use obj_exporter::*;
+
+
+
+pub const WIDTH: f32 = 1280.0;
+pub const HEIGHT: f32 = 720.0;
+
 fn main() {
-    App::build()
-        .insert_resource(WgpuOptions {
-            features: WgpuFeatures {
-                // The Wireframe requires NonFillPolygonMode feature
-                features: vec![WgpuFeature::NonFillPolygonMode],
-            },
-            ..Default::default()
+    App::new()
+        .add_plugins(DefaultPlugins
+            .set(WindowPlugin {
+                window: WindowDescriptor {
+                width: WIDTH,
+                height: HEIGHT,
+                title: "heightmapper".to_string(),
+                ..default()
+                },
+            ..default()
+        }))
+        .insert_resource(ClearColor(Color::GRAY))
+        .insert_resource(MovementSettings {
+            sensitivity: 0.00015, // default: 0.00012
+            speed: 120.0, // default: 12.0
         })
+        .add_plugin(NoCameraPlayerPlugin)
         .insert_resource(Msaa { samples: 4 })
-        .add_plugins(DefaultPlugins)
         .add_plugin(WireframePlugin)
-        .add_startup_system(setup.system())
+        .add_startup_system(setup)
         .run();
 }
 
@@ -37,6 +42,12 @@ fn setup(
 ) {
     wireframe_config.global = true;
 
+    commands.insert_resource(AmbientLight {
+        color: Color::WHITE,
+        brightness: 0.5,
+    });
+    
+
     let (buffer, mesh) = heightmap_to_mesh(&mut meshes, |p| 10.0 * sine2d(5.0, p));
 
     spawn_pbr(
@@ -46,20 +57,10 @@ fn setup(
         Transform::from_translation(Vec3::new(-32.0, 0.0, -32.0)),
     );
 
-    commands.spawn_bundle(LightBundle {
-        transform: Transform::from_translation(Vec3::new(50.0, 50.0, 50.0)),
-        light: Light {
-            range: 200.0,
-            intensity: 8000.0,
-            ..Default::default()
-        },
-        ..Default::default()
-    });
-    commands.spawn_bundle(PerspectiveCameraBundle {
-        transform: Transform::from_translation(Vec3::new(50.0, 75.0, 50.0))
-            .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y),
-        ..Default::default()
-    });
+    commands.spawn(Camera3dBundle {
+        transform: Transform::from_xyz(0., 0., 0.).looking_at(Vec3::ZERO, Vec3::Y),
+        ..default()
+    }).insert(FlyCam);
 
     write_mesh_to_obj_file(&buffer);
 }
@@ -82,17 +83,17 @@ fn heightmap_to_mesh(
     let num_vertices = buffer.positions.len();
 
     let mut render_mesh = Mesh::new(PrimitiveTopology::TriangleList);
-    render_mesh.set_attribute(
-        "Vertex_Position",
-        VertexAttributeValues::Float3(buffer.positions.clone()),
+    render_mesh.insert_attribute(
+        Mesh::ATTRIBUTE_POSITION,
+        buffer.positions.clone(),
     );
-    render_mesh.set_attribute(
-        "Vertex_Normal",
-        VertexAttributeValues::Float3(buffer.normals.clone()),
+    render_mesh.insert_attribute(
+        Mesh::ATTRIBUTE_NORMAL,
+        buffer.normals.clone(),
     );
-    render_mesh.set_attribute(
-        "Vertex_Uv",
-        VertexAttributeValues::Float2(vec![[0.0; 2]; num_vertices]),
+    render_mesh.insert_attribute(
+        Mesh::ATTRIBUTE_UV_0,
+        vec![[0.0; 2]; num_vertices],
     );
     render_mesh.set_indices(Some(Indices::U32(buffer.indices.clone())));
 
@@ -106,9 +107,9 @@ fn spawn_pbr(
     transform: Transform,
 ) {
     let mut material = StandardMaterial::from(Color::rgb(0.0, 0.0, 0.0));
-    material.roughness = 0.9;
 
-    commands.spawn_bundle(PbrBundle {
+
+    commands.spawn(PbrBundle {
         mesh,
         material: materials.add(material),
         transform,
